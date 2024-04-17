@@ -1,4 +1,4 @@
-from LogicaExtraccionBag import ProcesadorBags
+from LogicaExtraccionBag.ProcesadorBags import ProcesadorBags
 import numpy as np
 import os
 from CargarModelo import CargarModelo
@@ -21,7 +21,7 @@ class Main:
     def extraccion_informacion(self):
         logging.info("Iniciando la extracción de información desde archivos bag.")
         extraccion_bag = ProcesadorBags(self.path_bag_folder)
-        extraccion_bag.process_bag_files()
+        extraccion_bag.process_bag_files("Extraccion")
 
     def cargar_modelo(self):
         logging.info("Cargando modelo de segmentación.")
@@ -67,7 +67,7 @@ class Main:
                 writer.writerow([bache.id_bache, bache.diametro_bache, bache.profundidad_del_bache_estimada, bache.ruta_imagen_contorno])
 
     def run(self):
-        #self.extraccion_informacion()
+        self.extraccion_informacion()
         self.cargar_modelo()
         self.aplicar_modelo()
         self.aplicar_recorte_a_imagenes_que_contengan_bache()
