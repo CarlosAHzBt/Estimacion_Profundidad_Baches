@@ -28,7 +28,7 @@ class Bache:
         altura_captura = self.estimar_altura_captura()
         self.escala_horizontal, _ = self.convPx2M.calcular_escala(altura_captura)
         pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
-        if pcd_cropped:
+        if pcd_cropped is not None:
             return self.estimar_profundidad_del_bache(pcd_cropped)
         return False
 
@@ -137,4 +137,4 @@ class Bache:
         profundidad = self.altura_captura - np.max(z) 
         print(f"La profundidad del bache {self.id_bache} es de {profundidad} m, con una altura de captura de {self.altura_captura} m.")
         self.profundidad_del_bache_estimada = profundidad
-        return profundidad
+        return True
