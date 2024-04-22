@@ -15,7 +15,32 @@ class RANSAC:
             distancia_thresh (float): Umbral de distancia para el algoritmo RANSAC.
         """
         self.distancia_thresh = distancia_thresh
+    def segmentar_plano(self,pcd, distancia_thresh=0.01, ransac_n=100, num_iterations=1000):
+        """ Segmenta el plano usando RANSAC y devuelve el modelo del plano y los inliers. """
+        plano_modelo, inliers = pcd.segment_plane(distance_threshold=distancia_thresh, ransac_n=ransac_n, num_iterations=num_iterations)
+        return plano_modelo, inliers
 
+    def calcular_vector_rotacion(self,normal_del_plano, vector_objetivo=[0, 0, 1]):
+        """ Calcula el ángulo y el eje para la rotación que alinea la normal del plano con el vector objetivo. """
+        normal_del_plano = normal_del_plano / np.linalg.norm(normal_del_plano)  # Normaliza la normal del plano
+        producto_punto = np.dot(normal_del_plano, vector_objetivo)
+        axis = np.cross(normal_del_plano, vector_objetivo)
+        angle = 1 + np.arccos(producto_punto / (np.linalg.norm(normal_del_plano) * np.linalg.norm(vector_objetivo)))
+        return axis, angle
+
+    def aplicar_rotacion(self, pcd, axis, angle, centro=[0, 0, 0]):
+        """ Aplica la rotación a la nube de puntos y devuelve la nube de puntos rotada. """
+        R = o3d.geometry.get_rotation_matrix_from_axis_angle(axis * angle)
+        pcd.rotate(R, center=centro)
+        return pcd, R
+
+    def segmentar_plano_y_nivelar(self,pcd):
+        """ Combina los pasos para segmentar un plano y nivelar la nube de puntos basada en ese plano. """
+        plano_modelo, _ = self.segmentar_plano(pcd)
+        normal_del_plano = np.array(plano_modelo[:3])  # Extrae la normal del modelo del plano
+        axis, angle = self.calcular_vector_rotacion(normal_del_plano)
+        pcd_rotada, R = self.aplicar_rotacion(pcd, axis, angle)
+        return pcd_rotada, R
     #def filtrar_puntos(self, pcd, z_min, z_max):
     #    """
     #    Filtra la nube de puntos en el eje Z entre z_min y z_max.
@@ -81,43 +106,18 @@ class RANSAC:
 #
     #    return pcd_nivelada, R
     #
-    def segmentar_plano(self,pcd, distancia_thresh=0.01, ransac_n=100, num_iterations=1000):
-        """ Segmenta el plano usando RANSAC y devuelve el modelo del plano y los inliers. """
-        plano_modelo, inliers = pcd.segment_plane(distance_threshold=distancia_thresh, ransac_n=ransac_n, num_iterations=num_iterations)
-        return plano_modelo, inliers
 
-    def calcular_vector_rotacion(self,normal_del_plano, vector_objetivo=[0, 0, 1]):
-        """ Calcula el ángulo y el eje para la rotación que alinea la normal del plano con el vector objetivo. """
-        normal_del_plano = normal_del_plano / np.linalg.norm(normal_del_plano)  # Normaliza la normal del plano
-        producto_punto = np.dot(normal_del_plano, vector_objetivo)
-        axis = np.cross(normal_del_plano, vector_objetivo)
-        angle = 1 + np.arccos(producto_punto / (np.linalg.norm(normal_del_plano) * np.linalg.norm(vector_objetivo)))
-        return axis, angle
 
-    def aplicar_rotacion(self, pcd, axis, angle, centro=[0, 0, 0]):
-        """ Aplica la rotación a la nube de puntos y devuelve la nube de puntos rotada. """
-        R = o3d.geometry.get_rotation_matrix_from_axis_angle(axis * angle)
-        pcd.rotate(R, center=centro)
-        return pcd, R
-
-    def segmentar_plano_y_nivelar(self,pcd):
-        """ Combina los pasos para segmentar un plano y nivelar la nube de puntos basada en ese plano. """
-        plano_modelo, _ = self.segmentar_plano(pcd)
-        normal_del_plano = np.array(plano_modelo[:3])  # Extrae la normal del modelo del plano
-        axis, angle = self.calcular_vector_rotacion(normal_del_plano)
-        pcd_rotada, R = self.aplicar_rotacion(pcd, axis, angle)
-        return pcd_rotada, R
-
-    def segmentar_plano_y_nivelar(self,pcd):
-        plano_modelo, inliers = pcd.segment_plane(distance_threshold=0.01, ransac_n=100, num_iterations=1000)
-        [a, b, c, d] = plano_modelo
-        normal_del_plano = np.array([a, b, c])
-        normal_del_plano /= np.linalg.norm(normal_del_plano)
-        vector_objetivo = [0, 0, 1]
-        producto_punto = np.dot(normal_del_plano, vector_objetivo)
-        axis = np.cross(normal_del_plano, vector_objetivo)
-        angle =1 + np.arccos(producto_punto / (np.linalg.norm(normal_del_plano) * np.linalg.norm(vector_objetivo)))
-        R = o3d.geometry.get_rotation_matrix_from_axis_angle(axis * angle)
-        centro = [0,0,0] # O ajustar según sea necesario
-        pcd.rotate(R, center=centro)
-        return pcd, R
+    #def segmentar_plano_y_nivelar(self,pcd):
+    #    plano_modelo, inliers = pcd.segment_plane(distance_threshold=0.01, ransac_n=100, num_iterations=1000)
+    #    [a, b, c, d] = plano_modelo
+    #    normal_del_plano = np.array([a, b, c])
+    #    normal_del_plano /= np.linalg.norm(normal_del_plano)
+    #    vector_objetivo = [0, 0, 1]
+    #    producto_punto = np.dot(normal_del_plano, vector_objetivo)
+    #    axis = np.cross(normal_del_plano, vector_objetivo)
+    #    angle =1 + np.arccos(producto_punto / (np.linalg.norm(normal_del_plano) * np.linalg.norm(vector_objetivo)))
+    #    R = o3d.geometry.get_rotation_matrix_from_axis_angle(axis * angle)
+    #    centro = [0,0,0] # O ajustar según sea necesario
+    #    pcd.rotate(R, center=centro)
+    #    return pcd, R
