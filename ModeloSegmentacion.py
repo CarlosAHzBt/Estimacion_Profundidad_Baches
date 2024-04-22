@@ -44,11 +44,11 @@ class ModeloSegmentacion():
         filtered_regions = [region.coords for region in regions if region.area >= self.min_area]
         return filtered_regions
     
-    def _dibujar_regiones_filtradas(self, labeled_mask, filtered_regions):
-        plt.imshow(labeled_mask, cmap="nipy_spectral")
-        for region in filtered_regions:
-            plt.plot(region[:, 1], region[:, 0], "o", markersize=3)
-        plt.show()
+    #def _dibujar_regiones_filtradas(self, labeled_mask, filtered_regions):
+    #    plt.imshow(labeled_mask, cmap="nipy_spectral")
+    #    for region in filtered_regions:
+    #        plt.plot(region[:, 1], region[:, 0], "o", markersize=3)
+    #    plt.show()
 
     def obtener_coordenadas_baches(self, ruta_imagen):
         pixel_values = self._preparar_imagen(ruta_imagen)
