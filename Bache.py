@@ -13,14 +13,14 @@ from AdministradorDeArchivos import AdministradorArchivos
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Bache:
-    def __init__(self, bag_de_origen, ruta_bag, ruta_imagenRGB, id_bache, coordenadas=None):
+    def __init__(self, bag_de_origen, ruta_bag,ruta_salida, ruta_imagenRGB, id_bache, coordenadas=None):
         self.id_bache = id_bache
         self.bag_de_origen = bag_de_origen
         self.ruta_bag = ruta_bag
         self.ruta_imagenRGB = ruta_imagenRGB
         self.imagen_original_shape = (480, 848)  # Resolución de la imagen
         self.coordenadas = np.array(coordenadas) if coordenadas is not None else np.empty((0, 2), dtype=int)
-        
+        self.ruta_salida = ruta_salida
         self.convPx2M = ConvertirPixelesAMetros()
         self.pointCloudFilter = PointCloudFilter()
         self.ransac = RANSAC()
@@ -41,17 +41,15 @@ class Bache:
 
     def calcular_contorno(self):
         if self.coordenadas.size == 0:
-            logging.error("No hay coordenadas para calcular el contorno.")
-            return
-        try:
-            mask = np.zeros(self.imagen_original_shape[:2], dtype=np.uint8)
-            cv.fillPoly(mask, [self.coordenadas], 255)
-            contornos, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-            self.contorno = max(contornos, key=cv.contourArea).squeeze()
-            if self.contorno.ndim == 1:
-                self.contorno = self.contorno.reshape(-1, 1, 2)
-        except Exception as e:
-            logging.error(f"Error al calcular el contorno: {e}")
+            raise ValueError("No hay coordenadas para calcular el contorno.")
+        mask = np.zeros(self.imagen_original_shape[:2], dtype=np.uint8)
+        for x, y in self.coordenadas:
+            mask[x ,y] = 255
+        contornos, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+        contorno_externo = max(contornos, key=cv.contourArea).squeeze()
+        if contorno_externo.ndim == 1:
+            contorno_externo = contorno_externo.reshape(-1, 1, 2)
+        self.contorno = contorno_externo
 
     def generar_imagen_con_contorno_y_circulo(self):
         imagen = cv.imread(self.ruta_imagenRGB)
@@ -64,9 +62,9 @@ class Bache:
                     logging.error(f"Error al dibujar el círculo: {e}")
             administradorDeArchivos = AdministradorArchivos()
             administradorDeArchivos.crear_carpeta(f"Resultados/imagenesContorno")
-            administradorDeArchivos.crear_carpeta(f"Resultados/imagenesContorno/{self.bag_de_origen}")
-            ruta_imagen_con_dibujos = administradorDeArchivos.imagenes_contorno_bache(f"Resultados/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png", imagen)
-            self.ruta_imagen_contorno = f"../Resultados/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png"
+            administradorDeArchivos.crear_carpeta(f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}")
+            ruta_imagen_con_dibujos = administradorDeArchivos.imagenes_contorno_bache(f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png", imagen)
+            self.ruta_imagen_contorno = f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png"
             return ruta_imagen_con_dibujos
         else:
             logging.error("No se pudo cargar la imagen.")
@@ -122,6 +120,8 @@ class Bache:
         return self.radio_maximo
 
     def estimar_profundidad_del_bache(self, pcd_cropped):
+        #ver nube de puntos Debbuging
+        #o3d.visualization.draw_geometries([pcd_cropped])
         puntos = np.asarray(pcd_cropped.points)
         imagenContorno = self.generar_imagen_con_contorno_y_circulo()
         z = puntos[:, 2]

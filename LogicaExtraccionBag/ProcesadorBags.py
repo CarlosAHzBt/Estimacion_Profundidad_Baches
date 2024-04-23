@@ -2,7 +2,6 @@
 from LogicaExtraccionBag.BagFile import BagFile
 import os
 
-import concurrent.futures
 
 class ProcesadorBags:
     def __init__(self, bag_files_path):
