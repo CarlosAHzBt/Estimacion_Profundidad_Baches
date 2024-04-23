@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class AdministradorArchivos:
     def __init__(self, carpeta_base="Extraccion"):
         self.carpeta_base = carpeta_base
+        self.crear_carpeta(self.carpeta_base)
 
     def generar_lista_de_bags_bags(self, ruta_archivos_bag):
         #EstaFuncion generara la lista de los archivos bags de donde se extraen las imagenes
