@@ -1,22 +1,35 @@
-from LogicaExtraccionBag.ProcesadorBags import ProcesadorBags
-import numpy as np
+
+import argparse
 import os
+from LogicaExtraccionBag.ProcesadorBags import ProcesadorBags
+import logging
 from CargarModelo import CargarModelo
 from ModeloSegmentacion import ModeloSegmentacion
 from Bache import Bache
 from AdministradorDeArchivos import AdministradorArchivos
-import torch
 import csv
-import logging
+import torch
+import tkinter as tk
+from tkinter import filedialog
+
 
 # Configuración básica de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Main:
-    def __init__(self, path_bag_folder):
+    def __init__(self, path_bag_folder, output_folder):
         self.path_bag_folder = path_bag_folder
+        self.output_folder = output_folder
         self.modelo = None
         self.lista_baches = []
+
+    def run(self):
+        self.extraccion_informacion()
+        self.cargar_modelo()
+        self.aplicar_modelo()
+        self.aplicar_recorte_a_imagenes_que_contengan_bache()
+        self.generar_documento_de_deterioros()
+        self.borrar_todos_los_archivos_extraidos_al_terminar()
 
     def extraccion_informacion(self):
         logging.info("Iniciando la extracción de información desde archivos bag.")
@@ -66,15 +79,11 @@ class Main:
             for bache in self.lista_baches:
                 writer.writerow([bache.id_bache, bache.diametro_bache, bache.profundidad_del_bache_estimada, bache.ruta_imagen_contorno])
 
-    def run(self):
-        self.extraccion_informacion()
-        self.cargar_modelo()
-        self.aplicar_modelo()
-        self.aplicar_recorte_a_imagenes_que_contengan_bache()
-        self.generar_documento_de_deterioros()
-        #self.borrar_todos_los_archivos_extraidos_al_terminar()
-
 if __name__ == "__main__":
-    path_bag_folder = "bag"
-    app = Main(path_bag_folder)
-    app.run()
+
+
+    if os.path.isdir(args.input_path) or (os.path.isfile(args.input_path) and args.input_path.endswith('.bag')):
+        app = Main(args.input_path, args.output_path)
+        app.run()
+    else:
+        print("El directorio de entrada no contiene archivos .bag o la ruta del archivo no es válida.")
