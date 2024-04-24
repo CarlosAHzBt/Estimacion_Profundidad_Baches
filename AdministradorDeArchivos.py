@@ -2,6 +2,7 @@
 import os
 import cv2 as cv
 import logging
+import shutil
 
 # Configuración básica de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -9,6 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class AdministradorArchivos:
     def __init__(self, carpeta_base="Extraccion"):
         self.carpeta_base = carpeta_base
+        self.crear_carpeta(self.carpeta_base)
 
     def generar_lista_de_bags_bags(self, ruta_archivos_bag):
         #EstaFuncion generara la lista de los archivos bags de donde se extraen las imagenes
@@ -18,11 +20,11 @@ class AdministradorArchivos:
                             if os.path.isdir(os.path.join(self.ruta_archivos_bag, f))] 
         return archivos_bags
     
-    def obtener_bag_de_origen(self, ruta_imagen):
+    def obtener_bag_de_origen(self, ruta_imagen,bag_de_origen):
         # Obtiene la ruta del bag de origen de la imagen
         ruta_padre = os.path.dirname(os.path.dirname(ruta_imagen))
         nombre_carpeta = os.path.basename(ruta_padre)
-        bag_de_origen = os.path.join("bag", nombre_carpeta + ".bag")
+        bag_de_origen = os.path.join(bag_de_origen + "/", nombre_carpeta + ".bag")
         return bag_de_origen
     def generar_lista_de_archivosBags(self):
         # Asumiendo que los archivos bags están directamente bajo carpeta_base
@@ -60,7 +62,4 @@ class AdministradorArchivos:
 
     def borrar_archivos_extraidos(self):
         # Elimina la carpeta base y su contenido
-        try:
-            os.rmdir(self.carpeta_base)
-        except OSError as e:
-            logging.error(f"Error al eliminar {self.carpeta_base}: {e}")
+        shutil.rmtree(self.carpeta_base)
