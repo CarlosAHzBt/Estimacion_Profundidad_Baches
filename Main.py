@@ -7,6 +7,7 @@ from AdministradorDeArchivos import AdministradorArchivos
 import torch
 import csv
 import logging
+import sys
 
 
 # Configuración básica de logging
@@ -17,6 +18,7 @@ class Main:
         self.path_bag_folder = path_bag_folder
         self.output_folder = output_folder
         self.modelo = None
+        self.ruta_modelo ="model_state_dictV5.pth"  # Ruta del modelo entrenado
         self.lista_baches = []
 
     def run(self):
@@ -35,10 +37,15 @@ class Main:
     def cargar_modelo(self):
         logging.info("Cargando modelo de segmentación.")
         modelo_loader = CargarModelo()
-        self.modelo = modelo_loader.cargar_modelo("RutaModelo/model_state_dictV5.pth")
+        if getattr(sys, 'frozen', False):
+            # Si se ejecuta como ejecutable congelado, la ruta es relativa al sys._MEIPASS
+            ruta_modelo = os.path.join(sys._MEIPASS, self.ruta_modelo)
+        else:
+            # Ruta normal como script de Python
+            ruta_modelo = self.ruta_modelo
+        self.modelo = modelo_loader.cargar_modelo(ruta_modelo)
         self.modelo.to('cuda' if torch.cuda.is_available() else 'cpu')
         logging.info("Modelo cargado y transferido a " + ('CUDA' if torch.cuda.is_available() else 'CPU'))
-
     def aplicar_modelo(self):
         segmentador = ModeloSegmentacion(self.modelo)
         administrador_archivos = AdministradorArchivos("Extraccion")

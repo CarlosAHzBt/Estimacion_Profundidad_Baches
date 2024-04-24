@@ -6,3 +6,6 @@ Extraccion
 Resultados
 deterioros.csv
 .vscode
+/build
+/dist
+GUI.spec
