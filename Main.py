@@ -60,7 +60,8 @@ class Main:
                     bache = Bache(ruta_carpeta_bag, bag_de_origen, self.output_folder ,ruta_imagen, id_bache, coord)
                     if bache.procesar_bache():
                         logging.info(f"El diametro máximo del bache {bache.id_bache} es {bache.diametro_bache} mm procedente del bag {bache.bag_de_origen}.")
-                        self.lista_baches.append(bache)
+                        if bache.profundidad_del_bache_estimada < -0.009:
+                            self.lista_baches.append(bache)
 
     def aplicar_recorte_a_imagenes_que_contengan_bache(self):
         logging.info("Aplicando recorte a imágenes que contengan baches y procesando nubes de puntos.")
