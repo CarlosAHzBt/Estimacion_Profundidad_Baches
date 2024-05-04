@@ -30,6 +30,7 @@ class Bache:
             self.calcular_contorno()
             if not hasattr(self, 'contorno') or not self.contorno.size:
                 return False
+            self.depth_image= self.set_depth_image()
             altura_captura = self.estimar_altura_captura()
             self.escala_horizontal, _ = self.convPx2M.calcular_escala(altura_captura)
             pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
@@ -79,8 +80,8 @@ class Bache:
             return None
 
     def estimar_altura_captura(self):
-        ply_path = os.path.join(self.bag_de_origen, "ply", f"{self.id_bache.rsplit('_', 1)[0]}.ply")
-        return AlturaCaptura(ply_path).calcular_altura()
+        altura_captura = AlturaCaptura()
+        return altura_captura.calcular_altura_apartir_de_depth_image(self.ruta_depth_image)
 
     def set_depth_image(self):
         nombre_archivo_sin_extension = self.id_bache[:-2]
