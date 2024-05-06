@@ -18,7 +18,7 @@ class Main:
         self.path_bag_folder = path_bag_folder
         self.output_folder = output_folder
         self.modelo = None
-        self.ruta_modelo ="model_state_dictV5.pth"  # Ruta del modelo entrenado
+        self.ruta_modelo ="model_state_dictV12-conGrietas.pth"  # Ruta del modelo entrenado
         self.lista_baches = []
 
     def run(self):

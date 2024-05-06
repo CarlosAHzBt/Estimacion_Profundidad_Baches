@@ -9,7 +9,9 @@ class CargarModelo:
      # Crear una nueva instancia del modelo
         id2label = {
             0: "background",
-            1: "Bache",}
+            1: "Bache",
+            2: "Grieta",
+            }
         modelo = SegformerFinetuner(id2label=id2label)  # Asegúrate de proporcionar los argumentos necesarios aquí
 
      # Cargar el state_dict guardado en el modelo
