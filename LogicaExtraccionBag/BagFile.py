@@ -43,7 +43,7 @@ class BagFile:
                     continue
                 self.save_color_image(color_frame, frame_number)
                 self.save_depth_frame(depth_frame, frame_number)
-                self.save_depth_frame_as_ply(depth_frame, frame_number, aligned_frames)
+                #self.save_depth_frame_as_ply(depth_frame, frame_number, aligned_frames)
                 frame_number += 1
         except RuntimeError:
             print("Todos los frames han sido procesados.")

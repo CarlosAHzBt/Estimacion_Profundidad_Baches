@@ -30,14 +30,17 @@ class Bache:
             self.calcular_contorno()
             if not hasattr(self, 'contorno') or not self.contorno.size:
                 return False
+            self.depth_image= self.set_depth_image()
             altura_captura = self.estimar_altura_captura()
             self.escala_horizontal, _ = self.convPx2M.calcular_escala(altura_captura)
             pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
             if pcd_cropped is not None:
                 return self.estimar_profundidad_del_bache(pcd_cropped)
+            else:
+                return False
         except Exception as e:
             logging.error(f"Error al procesar el bache: {e}")
-        return False
+            
 
     def calcular_contorno(self):
         if self.coordenadas.size == 0:
@@ -53,26 +56,34 @@ class Bache:
 
     def generar_imagen_con_contorno_y_circulo(self):
         imagen = cv.imread(self.ruta_imagenRGB)
+        imagenRgb = imagen
         if imagen is not None:
+            administradorDeArchivos = AdministradorArchivos()
+
+            # Save the image without contour
+            administradorDeArchivos.crear_carpeta(f"Resultados/imagenesRGB")
+            administradorDeArchivos.crear_carpeta(f"{self.ruta_salida}/imagenesRGB/{self.bag_de_origen}")
+            ruta_imagen_rgb = f"{self.ruta_salida}/imagenesRGB/{self.bag_de_origen}/{self.id_bache}_rgb_image.png"
+            cv.imwrite(ruta_imagen_rgb, imagen)
             cv.drawContours(imagen, [self.contorno], -1, (0, 255, 0), 2)  # Dibuja el contorno en verde
             if hasattr(self, 'centro_circulo') and hasattr(self, 'radio_maximo'):
                 try:
                     cv.circle(imagen, self.centro_circulo, int(self.radio_circulo_bache_px), (0, 255, 0), 2)  # Dibuja el círculo en verde
                 except TypeError as e:
                     logging.error(f"Error al dibujar el círculo: {e}")
-            administradorDeArchivos = AdministradorArchivos()
             administradorDeArchivos.crear_carpeta(f"Resultados/imagenesContorno")
             administradorDeArchivos.crear_carpeta(f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}")
             ruta_imagen_con_dibujos = administradorDeArchivos.imagenes_contorno_bache(f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png", imagen)
             self.ruta_imagen_contorno = f"{self.ruta_salida}/imagenesContorno/{self.bag_de_origen}/{self.id_bache}_marked_image.png"
+            
             return ruta_imagen_con_dibujos
         else:
             logging.error("No se pudo cargar la imagen.")
             return None
 
     def estimar_altura_captura(self):
-        ply_path = os.path.join(self.bag_de_origen, "ply", f"{self.id_bache.rsplit('_', 1)[0]}.ply")
-        return AlturaCaptura(ply_path).calcular_altura()
+        altura_captura = AlturaCaptura()
+        return altura_captura.calcular_altura_apartir_de_depth_image(self.ruta_depth_image)
 
     def set_depth_image(self):
         nombre_archivo_sin_extension = self.id_bache[:-2]
@@ -89,7 +100,7 @@ class Bache:
         intrinsecos, depth_scale = self.pointCloudFilter.obtener_intrinsecos_from_pipeline(pipeline)
         pcd = self.pointCloudFilter.depth_image_to_pointcloud(depth_image, intrinsecos, depth_scale)
         self.radio_maximo = self.calcular_radio_maximo()
-        if self.diametro_bache < 130:
+        if self.diametro_bache < 150:  #Ajuste para especificar el diametro minimo del bache para ser analizado en mm
             return None
         bounding_box = self.pointCloudFilter.get_bounding_box(self.contorno)
         pcd, R = self.ransac.segmentar_plano_y_nivelar(pcd)

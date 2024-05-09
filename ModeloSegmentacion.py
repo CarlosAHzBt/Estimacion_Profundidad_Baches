@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class ModeloSegmentacion():
     def __init__(self, modelo_entrenado):
-        self.min_area = 1000  # Configura esto según tus necesidades
+        self.min_area = 3000  # Área mínima para considerar una detección de bache válida
         self.modelo = modelo_entrenado
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,12 +22,12 @@ class ModeloSegmentacion():
         return imagen_transformada
 
     def _aplicar_modelo(self, pixel_values):
-        #Si se tiene cuda activado mover pixel_values a cuda
         if torch.cuda.is_available():
             pixel_values = pixel_values.to('cuda')
         with torch.no_grad():
             predicciones = self.modelo(pixel_values=pixel_values)
-            predicted_mask = predicciones[0].argmax(dim=1).squeeze().cpu().numpy()
+            # Seleccionar solo la máscara de la clase 'Bache', asumiendo que la clase 'Bache' es 1
+            predicted_mask = (predicciones[0].argmax(dim=1) == 1).squeeze().cpu().numpy().astype(int)
         return predicted_mask
 
     def _redimensionar_mascara(self, predicted_mask):
