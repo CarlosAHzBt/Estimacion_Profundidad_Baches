@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Main:
-    def __init__(self, path_bag_folder, output_folder, batch_size=90):
+    def __init__(self, path_bag_folder, output_folder, batch_size=1):
         self.path_bag_folder = path_bag_folder
         self.output_folder = output_folder
         self.modelo = None
