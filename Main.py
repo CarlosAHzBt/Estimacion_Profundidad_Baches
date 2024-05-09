@@ -11,7 +11,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Configuración básica de logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - lvlname)s - %(message)s')
 
 class Main:
     def __init__(self, path_bag_folder, output_folder):
@@ -26,7 +26,6 @@ class Main:
         self.cargar_modelo()
         self.aplicar_modelo()
         self.procesar_baches()
-        #self.aplicar_recorte_a_imagenes_que_contengan_bache()
         self.generar_documento_de_deterioros()
         self.borrar_todos_los_archivos_extraidos_al_terminar()
 
@@ -59,7 +58,6 @@ class Main:
             imagenes = administrador_archivos.generar_lista_de_imagenes(ruta_carpeta_bag)
             for ruta_imagen in imagenes:
                 lista_imagenes.append((ruta_carpeta_bag, ruta_imagen))
-                #logging.info(f"Imagen {ruta_imagen} en la carpeta {ruta_carpeta_bag} agregada a la lista de procesamiento.")
         
         # Procesar imágenes en paralelo usando ThreadPoolExecutor
         with ThreadPoolExecutor() as executor:
@@ -68,7 +66,6 @@ class Main:
                 try:
                     baches = future.result()
                     self.lista_baches.extend(baches)
-                    logging.info(f"Imagen {ruta_imagen} en la carpeta {ruta_carpeta_bag} procesada con éxito se detecto bache.")
                 except Exception as exc:
                     ruta_carpeta_bag, ruta_imagen = future_to_image[future]
                     logging.error(f"Error procesando la imagen {ruta_imagen} en la carpeta {ruta_carpeta_bag}: {exc}")
@@ -86,18 +83,24 @@ class Main:
     def procesar_baches(self):
         logging.info("Procesando baches identificados.")
         nueva_lista_baches = []
-        for bache in self.lista_baches:
-            if bache.procesar_bache():
-                logging.info(f"El diámetro máximo del bache {bache.id_bache} es {bache.diametro_bache} mm procedente del bag {bache.bag_de_origen}.")
-                if bache.profundidad_del_bache_estimada < -0.015:  #Si la profundidad del bache es menor a 15 mm no se toma en cuenta
-                    logging.info(f"Bache {bache.id_bache} con profundidad {bache.profundidad_del_bache_estimada} m agregado a la lista final.")
-                    nueva_lista_baches.append(bache)
+        with ThreadPoolExecutor() as executor:
+            future_to_bache = {executor.submit(self.procesar_bache, bache): bache for bache in self.lista_baches}
+            for future in as_completed(future_to_bache):
+                try:
+                    bache = future.result()
+                    if bache is not None:
+                        nueva_lista_baches.append(bache)
+                except Exception as exc:
+                    logging.error(f"Error procesando el bache: {exc}")
         self.lista_baches = nueva_lista_baches
 
-    #def aplicar_recorte_a_imagenes_que_contengan_bache(self):
-    #    logging.info("Aplicando recorte a imágenes que contengan baches y procesando nubes de puntos.")
-    #    for bache in self.lista_baches:
-    #        logging.info(f"La profundidad del bache {bache.id_bache} es de {bache.profundidad_del_bache_estimada} m.")
+    def procesar_bache(self, bache):
+        if bache.procesar_bache():
+            logging.info(f"El diámetro máximo del bache {bache.id_bache} es {bache.diametro_bache} mm procedente del bag {bache.bag_de_origen}.")
+            if bache.profundidad_del_bache_estimada < -0.015:  # Si la profundidad del bache es menor a 15 mm no se toma en cuenta
+                logging.info(f"Bache {bache.id_bache} con profundidad {bache.profundidad_del_bache_estimada} m agregado a la lista final.")
+                return bache
+        return None
 
     def borrar_todos_los_archivos_extraidos_al_terminar(self):
         logging.info("Borrando todos los archivos extraídos al finalizar el proceso.")
@@ -106,6 +109,8 @@ class Main:
 
     def generar_documento_de_deterioros(self):
         logging.info("Generando documento de registro de deterioros.")
+        # Ordenar la lista de baches por ID y bag de origen
+        self.lista_baches = sorted(self.lista_baches, key=lambda bache: (bache.bag_de_origen, bache.id_bache))
         with open(os.path.join(self.output_folder, 'deterioros.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["ID Bache", "Radio Máximo (mm)", "Profundidad (m)", "Imagen"])
