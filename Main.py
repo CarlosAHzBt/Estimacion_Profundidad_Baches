@@ -11,15 +11,16 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Configuración básica de logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - lvlname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Main:
-    def __init__(self, path_bag_folder, output_folder):
+    def __init__(self, path_bag_folder, output_folder, batch_size=90):
         self.path_bag_folder = path_bag_folder
         self.output_folder = output_folder
         self.modelo = None
         self.ruta_modelo = "model_state_dictV15-este_ya_trae_ruido.pth"  # Ruta del modelo entrenado
         self.lista_baches = []
+        self.batch_size = batch_size
 
     def run(self):
         self.extraccion_informacion()
@@ -58,20 +59,31 @@ class Main:
             imagenes = administrador_archivos.generar_lista_de_imagenes(ruta_carpeta_bag)
             for ruta_imagen in imagenes:
                 lista_imagenes.append((ruta_carpeta_bag, ruta_imagen))
-        
-        # Procesar imágenes en paralelo usando ThreadPoolExecutor
+
+        # Procesar imágenes en lotes
+        for i in range(0, len(lista_imagenes), self.batch_size):
+            batch = lista_imagenes[i:i+self.batch_size]
+            self.procesar_lote_imagenes(segmentador, administrador_archivos, batch)
+
+    def procesar_lote_imagenes(self, segmentador, administrador_archivos, batch):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        segmentador.modelo.to(device)  # Asegúrate de que el modelo esté en la GPU
         with ThreadPoolExecutor() as executor:
-            future_to_image = {executor.submit(self.procesar_imagen, segmentador, administrador_archivos, ruta_carpeta_bag, ruta_imagen): (ruta_carpeta_bag, ruta_imagen) for ruta_carpeta_bag, ruta_imagen in lista_imagenes}
+            future_to_image = {executor.submit(self.procesar_imagen, segmentador, administrador_archivos, ruta_carpeta_bag, ruta_imagen, device): (ruta_carpeta_bag, ruta_imagen) for ruta_carpeta_bag, ruta_imagen in batch}
             for future in as_completed(future_to_image):
                 try:
                     baches = future.result()
                     self.lista_baches.extend(baches)
+                    
                 except Exception as exc:
                     ruta_carpeta_bag, ruta_imagen = future_to_image[future]
                     logging.error(f"Error procesando la imagen {ruta_imagen} en la carpeta {ruta_carpeta_bag}: {exc}")
+        torch.cuda.empty_cache()  # Liberar memoria de la GPU después de procesar el lote
 
-    def procesar_imagen(self, segmentador, administrador_archivos, ruta_carpeta_bag, ruta_imagen):
+    def procesar_imagen(self, segmentador, administrador_archivos, ruta_carpeta_bag, ruta_imagen, device):
+        # Obtener las coordenadas de los baches
         coordenadas_baches = segmentador.obtener_coordenadas_baches(ruta_imagen)
+        
         baches = []
         for i, coord in enumerate(coordenadas_baches):
             id_bache = f"{os.path.splitext(os.path.basename(ruta_imagen))[0]}_{i}"
