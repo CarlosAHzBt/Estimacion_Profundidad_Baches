@@ -36,9 +36,11 @@ class Bache:
             pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
             if pcd_cropped is not None:
                 return self.estimar_profundidad_del_bache(pcd_cropped)
+            else:
+                return False
         except Exception as e:
             logging.error(f"Error al procesar el bache: {e}")
-        return False
+            
 
     def calcular_contorno(self):
         if self.coordenadas.size == 0:
