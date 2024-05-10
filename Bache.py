@@ -100,7 +100,7 @@ class Bache:
         intrinsecos, depth_scale = self.pointCloudFilter.obtener_intrinsecos_from_pipeline(pipeline)
         pcd = self.pointCloudFilter.depth_image_to_pointcloud(depth_image, intrinsecos, depth_scale)
         self.radio_maximo = self.calcular_radio_maximo()
-        if self.diametro_bache < 150:  #Ajuste para especificar el diametro minimo del bache para ser analizado en mm
+        if self.diametro_bache < 120:  #Ajuste para especificar el diametro minimo del bache para ser analizado en mm
             return None
         bounding_box = self.pointCloudFilter.get_bounding_box(self.contorno)
         pcd, R = self.ransac.segmentar_plano_y_nivelar(pcd)
