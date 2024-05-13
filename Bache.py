@@ -30,9 +30,8 @@ class Bache:
             self.calcular_contorno()
             if not hasattr(self, 'contorno') or not self.contorno.size:
                 return False
-            self.depth_image= self.set_depth_image()
-            altura_captura = self.estimar_altura_captura()
-            self.escala_horizontal, _ = self.convPx2M.calcular_escala(altura_captura)
+            #self.depth_image= self.set_depth_image()
+            #altura_captura = self.estimar_altura_captura()
             pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
             if pcd_cropped is not None:
                 return self.estimar_profundidad_del_bache(pcd_cropped)
@@ -99,13 +98,19 @@ class Bache:
         pipeline = self.pointCloudFilter.start_pipeline(self.ruta_bag)
         intrinsecos, depth_scale = self.pointCloudFilter.obtener_intrinsecos_from_pipeline(pipeline)
         pcd = self.pointCloudFilter.depth_image_to_pointcloud(depth_image, intrinsecos, depth_scale)
+        pcd,R = self.ransac.segmentar_plano_y_nivelar(pcd)
+        puntos = np.asarray(pcd.points)
+        self.altura_captura = np.median(puntos[:, 2])
+        self.escala_horizontal, _ = self.convPx2M.calcular_escala(self.altura_captura)
+
+        #o3d.visualization.draw_geometries([pcd])
         self.radio_maximo = self.calcular_radio_maximo()
         if self.diametro_bache < 120:  #Ajuste para especificar el diametro minimo del bache para ser analizado en mm
             return None
         bounding_box = self.pointCloudFilter.get_bounding_box(self.contorno)
-        pcd, R = self.ransac.segmentar_plano_y_nivelar(pcd)
-        puntos = np.asarray(pcd.points)
-        self.altura_captura = np.median(puntos[:, 2])
+        #pcd, R = self.ransac.segmentar_plano_y_nivelar(pcd)
+        #puntos = np.asarray(pcd.points)
+        #self.altura_captura = np.median(puntos[:, 2])
         pcd_cropped = self.pointCloudFilter.recortar_nube_de_puntos(pcd, intrinsecos, depth_image, bounding_box, depth_scale, R, (0,0,0))
         return pcd_cropped
 
@@ -126,7 +131,7 @@ class Bache:
         self.radio_circulo_bache_px = self.radio_maximo
         self.radio_maximo = self.convPx2M.convertir_radio_pixeles_a_metros(self.radio_maximo, self.escala_horizontal)
         self.radio_maximo *= 1000
-        self.diametro_bache = self.radio_maximo * -2
+        self.diametro_bache = self.radio_maximo * 2
         logging.info(f"El diametro del bache es de {self.diametro_bache} mm")
         return self.radio_maximo
 

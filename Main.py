@@ -18,7 +18,7 @@ class Main:
         self.path_bag_folder = path_bag_folder
         self.output_folder = output_folder
         self.modelo = None
-        self.ruta_modelo = "model_state_dictV15-este_ya_trae_ruido.pth"  # Ruta del modelo entrenado
+        self.ruta_modelo = "model_state_dictV17-este_ya_trae_ruido.pth"  # Ruta del modelo entrenado
         self.lista_baches = []
         self.batch_size = batch_size
 
@@ -109,7 +109,7 @@ class Main:
     def procesar_bache(self, bache):
         if bache.procesar_bache():
             logging.info(f"El diámetro máximo del bache {bache.id_bache} es {bache.diametro_bache} mm procedente del bag {bache.bag_de_origen}.")
-            if bache.profundidad_del_bache_estimada < -0.009:  # Si la profundidad del bache es menor a 15 mm no se toma en cuenta
+            if bache.profundidad_del_bache_estimada < -0.000:  # Si la profundidad del bache es menor a 15 mm no se toma en cuenta
                 logging.info(f"Bache {bache.id_bache} con profundidad {bache.profundidad_del_bache_estimada} m agregado a la lista final.")
                 return bache
         return None
