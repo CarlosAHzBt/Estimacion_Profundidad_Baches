@@ -109,7 +109,7 @@ class Main:
     def procesar_bache(self, bache):
         if bache.procesar_bache():
             logging.info(f"El diámetro máximo del bache {bache.id_bache} es {bache.diametro_bache} mm procedente del bag {bache.bag_de_origen}.")
-            if bache.profundidad_del_bache_estimada < -0.015:  # Si la profundidad del bache es menor a 15 mm no se toma en cuenta
+            if bache.profundidad_del_bache_estimada < -0.000:  # Si la profundidad del bache es menor a 15 mm no se toma en cuenta
                 logging.info(f"Bache {bache.id_bache} con profundidad {bache.profundidad_del_bache_estimada} m agregado a la lista final.")
                 return bache
         return None
