@@ -6,6 +6,7 @@ class ProcesadorBags:
     def __init__(self, bag_files_path):
         self.bag_files_path = bag_files_path
         self.bag_files = self.get_bag_files()
+        self.lock = threading.Lock()  # Lock para sincronización
 
     def get_bag_files(self):
         """Obtiene la lista de archivos .bag en el directorio especificado."""
@@ -26,5 +27,5 @@ class ProcesadorBags:
     def process_bag_file(self, bag_file, carpeta_destino):
         """Procesa un archivo .bag."""
         bag_file_path = f"{self.bag_files_path}/{bag_file}"
-        bag = BagFile(bag_file_path, carpeta_destino)
+        bag = BagFile(bag_file_path, carpeta_destino, self.lock)
         bag.process_bag_file()

@@ -1,14 +1,17 @@
+import logging
 import os
 import pyrealsense2 as rs
 import numpy as np
 import cv2
-
+# Configuración básica de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 class BagFile:
-    def __init__(self, bag_file_path, base_folder):
+    def __init__(self, bag_file_path, base_folder, lock):
         self.bag_file_path = bag_file_path
         self.images_folder, self.ply_folder, self.depth_folder = self.create_output_folders(bag_file_path, base_folder)
         self.align = rs.align(rs.stream.color)  # Crear objeto de alineación una sola vez
         self.pc = rs.pointcloud()  # Crear objeto de nube de puntos una sola vez
+        self.lock = lock  # Lock para sincronización
 
     @staticmethod
     def create_output_folders(bag_file_path, base_folder):
@@ -41,10 +44,14 @@ class BagFile:
                 depth_frame = aligned_frames.get_depth_frame()
                 if not depth_frame or not color_frame:
                     continue
-                self.save_color_image(color_frame, frame_number)
-                self.save_depth_frame(depth_frame, frame_number)
-                #self.save_depth_frame_as_ply(depth_frame, frame_number, aligned_frames)
+
+                # Bloquear el acceso para evitar duplicación de frames
+                with self.lock:
+                    self.save_color_image(color_frame, frame_number)
+                    self.save_depth_frame(depth_frame, frame_number)
+
                 frame_number += 1
+                logging.info(f"Frame {frame_number} procesado.")
         except RuntimeError:
             print("Todos los frames han sido procesados.")
         finally:
@@ -53,14 +60,16 @@ class BagFile:
     def save_color_image(self, color_frame, frame_number):
         color_image = np.asanyarray(color_frame.get_data())
         color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)  # Cambio a RGB para coherencia con OpenCV
-        cv2.imwrite(f'{self.images_folder}/frame_{frame_number:05d}.png', color_image)
+        filename = f'{self.images_folder}/frame_{frame_number:05d}.png'
+        if not os.path.exists(filename):
+            cv2.imwrite(filename, color_image)
+        else:
+            logging.warning(f"El archivo {filename} ya existe, se está evitando la duplicación.")
 
-    def save_depth_frame_as_ply(self, depth_frame, frame_number, aligned_frames):
-        self.pc.map_to(aligned_frames.get_color_frame())
-        points = self.pc.calculate(depth_frame)
-        ply_filename = os.path.join(self.ply_folder, f"frame_{frame_number:05d}.ply")
-        points.export_to_ply(ply_filename, aligned_frames.get_color_frame())
     def save_depth_frame(self, depth_frame, frame_number):
         depth_image = np.asanyarray(depth_frame.get_data())
-        cv2.imwrite(f'{self.depth_folder}/frame_{frame_number:05d}.png', depth_image)
-
+        filename = f'{self.depth_folder}/frame_{frame_number:05d}.png'
+        if not os.path.exists(filename):
+            cv2.imwrite(filename, depth_image)
+        else:
+            logging.warning(f"El archivo {filename} ya existe, se está evitando la duplicación.")
