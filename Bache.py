@@ -10,10 +10,10 @@ import open3d as o3d
 from AdministradorDeArchivos import AdministradorArchivos
 
 # Configuración básica de logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime=s - %(levelname=s - %(message=s')
 
 class Bache:
-    def __init__(self, bag_de_origen, ruta_bag,ruta_salida, ruta_imagenRGB, id_bache, coordenadas=None):
+    def __init__(self, bag_de_origen, ruta_bag, ruta_salida, ruta_imagenRGB, id_bache, coordenadas=None):
         self.id_bache = id_bache
         self.bag_de_origen = bag_de_origen
         self.ruta_bag = ruta_bag
@@ -24,30 +24,38 @@ class Bache:
         self.convPx2M = ConvertirPixelesAMetros()
         self.pointCloudFilter = PointCloudFilter()
         self.ransac = RANSAC()
+        self.historial_profundidades = []
+        self.historial_radios = []
+        self.centro_circulo = None
+        self.radio_circulo_bache_px = None
+        self.radio_maximo = None
+        self.profundidad_del_bache_estimada = None
+        self.diametros_agrupados = []
+        self.profundidades_agrupadas = []
+        self.frames_agrupados = [id_bache]  # Inicializar los frames agrupados con el ID inicial
 
     def procesar_bache(self):
         try:
             self.calcular_contorno()
             if not hasattr(self, 'contorno') or not self.contorno.size:
                 return False
-            self.depth_image= self.set_depth_image()
-            altura_captura = self.estimar_altura_captura()
-            self.escala_horizontal, _ = self.convPx2M.calcular_escala(altura_captura)
             pcd_cropped = self.recortar_y_procesar_nube_de_puntos()
             if pcd_cropped is not None:
-                return self.estimar_profundidad_del_bache(pcd_cropped)
-            else:
-                return False
+                if self.estimar_profundidad_del_bache(pcd_cropped):
+                    self.diametros_agrupados.append(self.radio_maximo * 2)
+                    self.profundidades_agrupadas.append(self.profundidad_del_bache_estimada)
+                    return True
+            return False
         except Exception as e:
             logging.error(f"Error al procesar el bache: {e}")
-            
+            return False
 
     def calcular_contorno(self):
         if self.coordenadas.size == 0:
             raise ValueError("No hay coordenadas para calcular el contorno.")
         mask = np.zeros(self.imagen_original_shape[:2], dtype=np.uint8)
         for x, y in self.coordenadas:
-            mask[x ,y] = 255
+            mask[x, y] = 255
         contornos, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
         contorno_externo = max(contornos, key=cv.contourArea).squeeze()
         if contorno_externo.ndim == 1:
@@ -56,7 +64,6 @@ class Bache:
 
     def generar_imagen_con_contorno_y_circulo(self):
         imagen = cv.imread(self.ruta_imagenRGB)
-        imagenRgb = imagen
         if imagen is not None:
             administradorDeArchivos = AdministradorArchivos()
 
@@ -66,7 +73,7 @@ class Bache:
             ruta_imagen_rgb = f"{self.ruta_salida}/imagenesRGB/{self.bag_de_origen}/{self.id_bache}_rgb_image.png"
             cv.imwrite(ruta_imagen_rgb, imagen)
             cv.drawContours(imagen, [self.contorno], -1, (0, 255, 0), 2)  # Dibuja el contorno en verde
-            if hasattr(self, 'centro_circulo') and hasattr(self, 'radio_maximo'):
+            if self.centro_circulo is not None and self.radio_circulo_bache_px is not None:
                 try:
                     cv.circle(imagen, self.centro_circulo, int(self.radio_circulo_bache_px), (0, 255, 0), 2)  # Dibuja el círculo en verde
                 except TypeError as e:
@@ -99,14 +106,16 @@ class Bache:
         pipeline = self.pointCloudFilter.start_pipeline(self.ruta_bag)
         intrinsecos, depth_scale = self.pointCloudFilter.obtener_intrinsecos_from_pipeline(pipeline)
         pcd = self.pointCloudFilter.depth_image_to_pointcloud(depth_image, intrinsecos, depth_scale)
-        self.radio_maximo = self.calcular_radio_maximo()
-        if self.diametro_bache < 150:  #Ajuste para especificar el diametro minimo del bache para ser analizado en mm
-            return None
-        bounding_box = self.pointCloudFilter.get_bounding_box(self.contorno)
         pcd, R = self.ransac.segmentar_plano_y_nivelar(pcd)
         puntos = np.asarray(pcd.points)
         self.altura_captura = np.median(puntos[:, 2])
-        pcd_cropped = self.pointCloudFilter.recortar_nube_de_puntos(pcd, intrinsecos, depth_image, bounding_box, depth_scale, R, (0,0,0))
+        self.escala_horizontal, _ = self.convPx2M.calcular_escala(self.altura_captura)
+
+        self.radio_maximo = self.calcular_radio_maximo()
+        if self.diametro_bache < 80:  # Ajuste para especificar el diámetro mínimo del bache para ser analizado en mm
+            return None
+        bounding_box = self.pointCloudFilter.get_bounding_box(self.contorno)
+        pcd_cropped = self.pointCloudFilter.recortar_nube_de_puntos(pcd, intrinsecos, depth_image, bounding_box, depth_scale, R, (0, 0, 0))
         return pcd_cropped
 
     def calcular_radio_maximo(self):
@@ -126,17 +135,23 @@ class Bache:
         self.radio_circulo_bache_px = self.radio_maximo
         self.radio_maximo = self.convPx2M.convertir_radio_pixeles_a_metros(self.radio_maximo, self.escala_horizontal)
         self.radio_maximo *= 1000
-        self.diametro_bache = self.radio_maximo * -2
-        logging.info(f"El diametro del bache es de {self.diametro_bache} mm")
+        self.diametro_bache = self.radio_maximo * 2
+        logging.info(f"El diámetro del bache es de {self.diametro_bache} mm")
         return self.radio_maximo
 
     def estimar_profundidad_del_bache(self, pcd_cropped):
-        #ver nube de puntos Debbuging
-        #o3d.visualization.draw_geometries([pcd_cropped])
         puntos = np.asarray(pcd_cropped.points)
         imagenContorno = self.generar_imagen_con_contorno_y_circulo()
         z = puntos[:, 2]
         profundidad = self.altura_captura - np.max(z)
         logging.info(f"La profundidad del bache {self.id_bache} es de {profundidad} m, con una altura de captura de {self.altura_captura} m.")
         self.profundidad_del_bache_estimada = profundidad
+        self.historial_profundidades.append(profundidad)
+        self.historial_radios.append(self.radio_maximo)
         return True
+
+    def actualizar_promedios(self, nuevo_bache):
+        self.historial_profundidades.append(nuevo_bache.profundidad_del_bache_estimada)
+        self.historial_radios.append(nuevo_bache.radio_maximo)
+        self.profundidad_del_bache_estimada = np.mean(self.historial_profundidades)
+        self.radio_maximo = np.mean(self.historial_radios)
